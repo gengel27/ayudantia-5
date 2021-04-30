@@ -68,13 +68,192 @@ plot(1:k.max, wss2,
 escal_s$clus <- as.numeric(escal_s$clus)
 data_s$clus <- as.numeric(data_s$clus)
 
-# uso distancia euclidiana
+
 tempDist <- dist(escal_s) %>% as.matrix()
 
-#reordeno filas y columnas en base al cluster obtenido
+
 index <- sort(modelo_kmeans$cluster, index.return=TRUE)
 tempDist <- tempDist[index$ix,index$ix]
 rownames(tempDist) <- c(1:nrow(escal_s))
 colnames(tempDist) <- c(1:nrow(escal_s))
 
 image(tempDist)
+
+#hopkins
+library(factoextra)
+
+res <- get_clust_tendency(escal_s, n = 30, graph = FALSE)
+res2 <- get_clust_tendency(data_s, n = 30, graph = FALSE)
+
+print(res)
+print(res2)
+
+#indice correlacion
+
+tempMatrix <- matrix(0, nrow = nrow(data_s), ncol = nrow(data_s))
+tempMatrix[which(index$x==1), which(index$x==1)]  <- 1
+tempMatrix[which(index$x==2), which(index$x==2)]  <- 1
+tempMatrix[which(index$x==3), which(index$x==3)]  <- 1
+tempMatrix[which(index$x==4), which(index$x==4)]  <- 1
+tempMatrix[which(index$x==5), which(index$x==5)]  <- 1
+tempMatrix[which(index$x==6), which(index$x==6)]  <- 1
+tempMatrix[which(index$x==7), which(index$x==7)]  <- 1
+tempMatrix[which(index$x==8), which(index$x==8)]  <- 1
+tempMatrix[which(index$x==9), which(index$x==9)]  <- 1
+tempMatrix[which(index$x==10), which(index$x==10)] <- 1
+
+
+tempDist2 <- 1/(1+tempDist)
+
+
+cor <- cor(tempMatrix[upper.tri(tempMatrix)],tempDist2[upper.tri(tempDist2)])
+
+print(cor)
+
+
+install.packages("flexclust")
+library(flexclust)
+
+withinCluster <- numeric(10)
+for (i in 1:10){
+  tempdata_s <- escal_s[which(modelo_kmeans$cluster == i),]
+  withinCluster[i] <- sum(dist2(tempdata_s,colMeans(tempdata_s))^2)
+}
+cohesion = sum(withinCluster)
+
+print(c(cohesion, modelo_kmeans$tot.withinss))
+
+
+#Separation
+meandata_s <- colMeans(escal_s)
+SSB <- numeric(10)
+for (i in 1:10){
+  tempdata_s <- escal_s[which(modelo_kmeans$cluster==i),]
+  SSB[i] <- nrow(tempdata_s)*sum((meandata_s-colMeans(tempdata_s))^2)
+}
+separation = sum(SSB)
+
+print(separation)
+
+
+#coeficiente de silueta
+library(cluster)
+coefSil <- silhouette(modelo_kmeans$cluster,dist(escal_s))
+summary(coefSil)
+fviz_silhouette(coefSil) + coord_flip()
+
+
+coefSil=numeric(30)
+for (k in 2:30){
+  modelo <- kmeans(escal_s, centers = k)
+  temp <- silhouette(modelo$cluster,dist(escal_s))
+  coefSil[k] <- mean(temp[,3])
+}
+tempDF=data.frame(CS=coefSil,K=c(1:30))
+
+ggplot(tempDF, aes(x=K, y=CS)) + 
+  geom_line() +
+  scale_x_continuous(breaks=c(1:30))
+
+#2do analisis cluster
+data_s2 <- data_s[, colnames(data_s) %in% c("Precio","nota")]
+escal_s2 = scale(data_s) %>% as_tibble()
+
+modelo_kmean <- kmeans(escal_s2, centers = 5)
+modelo_kmean2 <- kmeans(data_s2, centers = 5)
+
+escal_s2$clus2 <- modelo_kmean$cluster %>% as.factor()
+data_s2$clus2 <- modelo_kmean2$cluster %>% as.factor()
+
+ggplot(escal_s2, aes(Precio, nota, color=clus2)) +
+  geom_point(alpha=0.5, show.legend = T) +
+  theme_bw()
+
+ggplot(data_s2, aes(Precio, nota, color=clus2)) +
+  geom_point(alpha=0.5, show.legend = T) +
+  theme_bw()
+
+info_clusters <- modelo_kmean$centers
+info_clusters2 <- modelo_kmean2$centers
+
+info_clusters
+
+#evaluacion
+
+escal_s2$clus <- as.numeric(escal_s2$clus2)
+data_s2$clus <- as.numeric(data_s2$clus2)
+
+
+tempDist_2 <- dist(escal_s2) %>% as.matrix()
+
+index <- sort(modelo_kmean$cluster, index.return=TRUE)
+tempDist_2 <- tempDist_2[index$ix,index$ix]
+rownames(tempDist_2) <- c(1:nrow(data_s))
+colnames(tempDist_2) <- c(1:nrow(data_s))
+
+image(tempDist_2)
+
+
+#hopkins
+
+library(factoextra)
+
+escal_s2$clus2 <- NULL
+data_s$clus2 <- NULL
+
+
+res_1 <- get_clust_tendency(escal_s2, n = 30, graph = FALSE)
+res_2 <- get_clust_tendency(data_s2, n = 30, graph = FALSE)
+
+print(res_1)
+print(res_2)
+
+#indice de correlacion
+tempMatrix2 <- matrix(0, nrow = nrow(escal_s2), ncol = nrow(escal_s2))
+tempMatrix2[which(index$x==1), which(index$x==1)]  <- 1
+tempMatrix2[which(index$x==2), which(index$x==2)]  <- 1
+tempMatrix2[which(index$x==3), which(index$x==3)]  <- 1
+tempMatrix2[which(index$x==4), which(index$x==4)]  <- 1
+tempMatrix2[which(index$x==5), which(index$x==5)]  <- 1
+
+tempDist_22 <- 1/(1+tempDist_2)
+
+
+cor2 <- cor(tempMatrix2[upper.tri(tempMatrix2)],tempDist_2[upper.tri(tempDist_2)])
+
+print(cor2)
+
+#indice de cohesion y separacion
+library(flexclust) 
+escal_s2 <- apply(escal_s2,2,as.numeric)
+
+#Cohesion
+withinCluster <- numeric(4)
+for (i in 1:4){
+  tempdata_s2 <- escal_s2[which(modelo_kmean$cluster == i),]
+  withinCluster[i] <- sum(dist2(tempdata_s2,colMeans(tempdata_s2))^2)
+}
+cohesion2 = sum(withinCluster)
+
+print(c(cohesion2, modelo_kmean$tot.withinss))
+
+#Separation
+meandata_s2 <- colMeans(escal_s2)
+SSB <- numeric(4)
+for (i in 1:4){
+  tempdata_s2 <- escal_s2[which(modelo_kmean$cluster==i),]
+  SSB[i] <- nrow(tempdata_s2)*sum((meandata_s2-colMeans(tempdata_s2))^2)
+}
+separation2 = sum(SSB)
+
+print(separation2)
+
+
+#coeficiente de silueta
+
+library(cluster)
+
+coefSil2 <- silhouette(modelo_kmean$cluster,dist(escal_s2))
+summary(coefSil2)
+
+fviz_silhouette(coefSil2) + coord_flip()
